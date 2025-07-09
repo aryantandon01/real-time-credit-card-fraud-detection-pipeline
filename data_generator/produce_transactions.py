@@ -1,10 +1,18 @@
+print("✅ Spark script started")
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
+print("✅ Imported Spark modules")
+
+
+print("✅ Starting streaming query")
 spark = SparkSession.builder \
     .appName("FraudDetection") \
     .config("spark.cassandra.connection.host", "localhost") \
     .getOrCreate()
+
+print("✅ SparkSession created")
 
 df = spark \
     .readStream \

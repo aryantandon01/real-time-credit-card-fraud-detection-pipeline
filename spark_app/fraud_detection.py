@@ -26,6 +26,11 @@ parsed_df = df.selectExpr("CAST(value AS STRING)") \
               .select(from_json(col("value"), schema).alias("data")) \
               .select("data.*")
 
+# Added for debugging
+query_debug = parsed_df.writeStream \
+    .format("console") \
+    .start()
+
 # Simple fraud rule: amount > 900
 flagged_df = parsed_df.withColumn("is_fraud", expr("amount > 900"))
 
