@@ -1,49 +1,20 @@
-print("✅ Spark script started")
+from kafka import KafkaProducer
+import json
+import random
+import time
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+producer = KafkaProducer(
+    bootstrap_servers='localhost:9092',
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
 
-print("✅ Imported Spark modules")
-
-
-print("✅ Starting streaming query")
-spark = SparkSession.builder \
-    .appName("FraudDetection") \
-    .config("spark.cassandra.connection.host", "localhost") \
-    .getOrCreate()
-
-print("✅ SparkSession created")
-
-df = spark \
-    .readStream \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "localhost:9092") \
-    .option("subscribe", "transactions") \
-    .load()
-
-from pyspark.sql.functions import from_json, expr
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
-
-schema = StructType([
-    StructField("transaction_id", IntegerType()),
-    StructField("user_id", IntegerType()),
-    StructField("amount", DoubleType()),
-    StructField("timestamp", IntegerType())
-])
-
-parsed_df = df.selectExpr("CAST(value AS STRING)") \
-              .select(from_json(col("value"), schema).alias("data")) \
-              .select("data.*")
-
-# Simple fraud rule: amount > 900
-flagged_df = parsed_df.withColumn("is_fraud", expr("amount > 900"))
-
-# Write flagged transactions to Cassandra
-query = flagged_df.writeStream \
-    .format("org.apache.spark.sql.cassandra") \
-    .option("keyspace", "fraud") \
-    .option("table", "flagged_transactions") \
-    .option("checkpointLocation", "/tmp/checkpoints") \
-    .start()
-
-query.awaitTermination()
+while True:
+    transaction = {
+        'transaction_id': random.randint(1000, 10000),
+        'user_id': random.randint(1, 100),
+        'amount': random.uniform(10.0, 1000.0),
+        'timestamp': int(time.time())
+    }
+    producer.send('transactions', transaction)
+    print(f"✅ Produced: {transaction}")
+    time.sleep(1)
